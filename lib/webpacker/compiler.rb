@@ -53,7 +53,7 @@ class Webpacker::Compiler
     def run_webpack
       logger.info "Compiling…"
 
-      sterr, stdout, status = Open3.capture3(webpack_env, "#{RbConfig.ruby} ./bin/webpack")
+      sterr, stdout, status = Open3.capture3(webpack_env, "bundle exec webpack")
 
       if status.success?
         logger.info "Compiled all packs in #{config.public_output_path}"
@@ -65,14 +65,19 @@ class Webpacker::Compiler
     end
 
     def default_watched_paths
-      ["#{config.source_path}/**/*", "yarn.lock", "package.json", "config/webpack/**/*"].freeze
+      [
+        *config.resolved_paths_globbed,
+        "#{config.source_path.relative_path_from(Rails.root)}/**/*",
+        "yarn.lock", "package.json",
+        "config/webpack/**/*"
+      ].freeze
     end
 
     def compilation_digest_path
-      config.cache_path.join(".last-compilation-digest")
+      config.cache_path.join(".last-compilation-digest-#{Webpacker.env}")
     end
 
     def webpack_env
-      env.merge("NODE_ENV" => @webpacker.env, "ASSET_HOST" => ActionController::Base.helpers.compute_asset_host)
+      env.merge("NODE_ENV" => @webpacker.env, "WEBPACKER_ASSET_HOST" => ActionController::Base.helpers.compute_asset_host)
     end
 end

@@ -30,6 +30,9 @@ in which case you may not even need the asset pipeline. This is mostly relevant 
   - [Angular with TypeScript](#angular-with-typescript)
   - [Vue](#vue)
   - [Elm](#elm)
+  - [Stimulus](#stimulus)
+  - [Coffeescript](#coffeescript)
+  - [Erb](#erb)
 - [Paths](#paths)
   - [Resolved](#resolved)
   - [Watched](#watched)
@@ -77,7 +80,7 @@ Or add it to your `Gemfile`:
 
 ```ruby
 # Gemfile
-gem 'webpacker', '~> 3.0'
+gem 'webpacker', '~> 3.2'
 
 # OR if you prefer to use master
 gem 'webpacker', git: 'https://github.com/rails/webpacker.git'
@@ -160,7 +163,12 @@ Once you start this development server, Webpacker will automatically start proxy
 webpack asset requests to this server. When you stop the server, it'll revert to
 on-demand compilation again.
 
-You can use environment variables as options supported by [webpack-dev-server](https://webpack.js.org/configuration/dev-server/) in the form `WEBPACKER_DEV_SERVER_<OPTION>`. Please note that these environment variables will always take precedence over the ones already set in the configuration file.
+You can use environment variables as options supported by
+[webpack-dev-server](https://webpack.js.org/configuration/dev-server/) in the
+form `WEBPACKER_DEV_SERVER_<OPTION>`. Please note that these environment
+variables will always take precedence over the ones already set in the
+configuration file, and that the _same_ environment variables must
+be available to the `rails server` process.
 
 ```bash
 WEBPACKER_DEV_SERVER_HOST=example.com WEBPACKER_DEV_SERVER_INLINE=true WEBPACKER_DEV_SERVER_HOT=false ./bin/webpack-dev-server
@@ -172,6 +180,12 @@ you can set the `host` when running `./bin/webpack-dev-server` binstub:
 
 ```bash
 WEBPACKER_DEV_SERVER_HOST=0.0.0.0 ./bin/webpack-dev-server
+```
+
+**Note:** You need to allow webpack-dev-server host as allowed origin for `connect-src` if you are running your application in a restrict CSP environment like Rails 5.2+. This can be done in Rails 5.2+ for development environment in the CSP initializer `config/initializers/content_security_policy.rb` with a snippet like this:
+
+```ruby
+  p.connect_src :self, :https, 'http://localhost:3035', 'ws://localhost:3035' if Rails.env.development?
 ```
 
 **Note:** Don't forget to prefix `ruby` when running these binstubs on windows
@@ -248,6 +262,23 @@ any changes to the configuration files. An example component is written in
 TypeScript will also be added to your project in `app/javascript` so that
 you can experiment with Angular right away.
 
+By default Angular uses a JIT compiler for development environment, this
+compiler is not compatible with restrictive CSP (Content Security
+Policy) environments like Rails 5.2+. You can use Angular AOT compiler
+in development with the [@ngtools/webpack](https://www.npmjs.com/package/@ngtools/webpack#usage) plugin.
+
+Alternatively if you're using Rails 5.2+ you can enable `unsafe-eval` rule for
+development environment, this can be done in the `config/initializers/content_security_policy.rb`
+with the following configuration:
+
+```ruby
+  if Rails.env.development?
+    p.script_src :self, :https, :unsafe_eval
+  else
+    p.script_src :self, :https
+  end
+```
+
 
 ### Vue
 
@@ -264,6 +295,19 @@ The installer will add Vue and required libraries using Yarn plus
 any changes to the configuration files. An example component will
 also be added to your project in `app/javascript` so that you can
 experiment Vue right away.
+
+If you're using Rails 5.2+ you need to enable `unsafe-eval` rule for development environment,
+this can be done in the `config/initializers/content_security_policy.rb` with the following
+configuration:
+
+```ruby
+  if Rails.env.development?
+    p.script_src :self, :https, :unsafe_eval
+  else
+    p.script_src :self, :https
+  end
+```
+You can read more about this in the [Vue docs](https://vuejs.org/v2/guide/installation.html#CSP-environments).
 
 
 ### Elm
@@ -282,6 +326,39 @@ The Elm library and core packages will be added via Yarn and Elm itself.
 An example `Main.elm` app will also be added to your project in `app/javascript`
 so that you can experiment with Elm right away.
 
+### Stimulus
+
+To use Webpacker with [Stimulus](http://stimulusjs.org), create a
+new Rails 5.1+ app using `--webpack=stimulus` option:
+
+```
+# Rails 5.1+
+rails new myapp --webpack=stimulus
+```
+
+(or run `bundle exec rails webpacker:install:stimulus` on a Rails app already setup with Webpacker).
+
+Please read [The Stimulus Handbook](https://stimulusjs.org/handbook/introduction) or learn more about its source code at https://github.com/stimulusjs/stimulus
+
+### Coffeescript
+
+To add [Coffeescript](http://coffeescript.org/) support,
+run `bundle exec rails webpacker:install:coffee` on a Rails app already
+setup with Webpacker.
+
+An example `hello_coffee.coffee` file will also be added to your project
+in `app/javascript/packs` so that you can experiment with Coffeescript right away.
+
+### Erb
+
+To add [Erb](https://apidock.com/ruby/ERB) support in your JS templates,
+run `bundle exec rails webpacker:install:erb` on a Rails app already
+setup with Webpacker.
+
+An example `hello_erb.js.erb` file will also be added to your project
+in `app/javascript/packs` so that you can experiment with Erb flavoured
+javascript right away.
+
 
 ## Paths
 
@@ -292,8 +369,8 @@ but all these options are configurable from `config/webpacker.yml` file.
 The configuration for what webpack is supposed to compile by default rests
 on the convention that every file in `app/javascript/packs/*`**(default)**
 or whatever path you set for `source_entry_path` in the `webpacker.yml` configuration
-is turned into their own output files (or entry points, as webpack calls it). Therefore you don't want to put anything inside `packs` directory that you do want to be
-an entry file. As a rule thumb, put all files you want to link in your views inside
+is turned into their own output files (or entry points, as webpack calls it). Therefore you don't want to put anything inside `packs` directory that you do not want to be
+an entry file. As a rule of thumb, put all files you want to link in your views inside
 "packs" directory and keep everything else under `app/javascript`.
 
 Suppose you want to change the source directory from `app/javascript`
@@ -359,10 +436,7 @@ Webpacker::Compiler.watched_paths << 'bower_components'
 
 ## Deployment
 
-Webpacker hooks up a new `webpacker:compile` task to `assets:precompile`, which gets run whenever you run `assets:precompile`. If you are not using Sprockets you
-can manually trigger `NODE_ENV=production bundle exec rails webpacker:compile`
-during your app deploy.
-
+Webpacker hooks up a new `webpacker:compile` task to `assets:precompile`, which gets run whenever you run `assets:precompile`. If you are not using Sprockets `webpacker:compile` is automatically aliased to `assets:precompile`. Remember to set NODE_ENV environment variable to production during deployment or when running the rake task.
 
 ## Docs
 

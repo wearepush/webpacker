@@ -3,7 +3,7 @@ require "rails/railtie"
 require "webpacker/helper"
 require "webpacker/dev_server_proxy"
 
-class Webpacker::Railtie < ::Rails::Railtie
+class Webpacker::Engine < ::Rails::Engine
   # Allows Webpacker config values to be set via Rails env config files
   config.webpacker = ActiveSupport::OrderedOptions.new
   config.webpacker.check_yarn_integrity = false
@@ -25,18 +25,20 @@ class Webpacker::Railtie < ::Rails::Railtie
   #     - add `config.webpacker.check_yarn_integrity = false`
   initializer "webpacker.yarn_check" do |app|
     if File.exist?("yarn.lock") && app.config.webpacker.check_yarn_integrity
-      ok = system("yarn check --integrity")
+      output = `yarn check --integrity 2>&1`
 
-      if !ok
-        warn "\n\n"
-        warn "========================================"
-        warn "  Your Yarn packages are out of date!"
-        warn "  Please run `yarn install` to update."
-        warn "========================================"
-        warn "\n\n"
-        warn "To disable this check, please add `config.webpacker.check_yarn_integrity = false`"
-        warn "to your Rails development config file (config/environments/development.rb)."
-        warn "\n\n"
+      unless $?.success?
+        $stderr.puts "\n\n"
+        $stderr.puts "========================================"
+        $stderr.puts "  Your Yarn packages are out of date!"
+        $stderr.puts "  Please run `yarn install` to update."
+        $stderr.puts "========================================"
+        $stderr.puts "\n\n"
+        $stderr.puts "To disable this check, please add `config.webpacker.check_yarn_integrity = false`"
+        $stderr.puts "to your Rails development config file (config/environments/development.rb)."
+        $stderr.puts "\n\n"
+        $stderr.puts output
+        $stderr.puts "\n\n"
 
         exit(1)
       end
@@ -76,10 +78,5 @@ class Webpacker::Railtie < ::Rails::Railtie
       Webpacker.bootstrap
       Spring.after_fork { Webpacker.bootstrap } if defined?(Spring)
     end
-  end
-
-  rake_tasks do
-    tasks_path = File.expand_path("../tasks", __dir__)
-    Dir.glob("#{tasks_path}/**/*.rake").sort.each { |ext| load ext }
   end
 end

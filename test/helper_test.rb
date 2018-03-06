@@ -8,12 +8,27 @@ class HelperTest < ActionView::TestCase
   def setup
     @request = Class.new do
       def send_early_hints(links) end
+      def base_url
+        "https://example.com"
+      end
     end.new
   end
 
   def test_asset_pack_path
     assert_equal "/packs/bootstrap-300631c4f0e0f9c865bc.js", asset_pack_path("bootstrap.js")
     assert_equal "/packs/bootstrap-c38deda30895059837cf.css", asset_pack_path("bootstrap.css")
+
+    Webpacker.dev_server.stub :running?, true do
+      Webpacker.dev_server.stub :hot_module_replacing?, true do
+        assert_nil asset_pack_path("bootstrap.css")
+        assert_equal "/packs/application-k344a6d59eef8632c9d1.png", asset_pack_path("application.png")
+      end
+    end
+  end
+
+  def test_asset_pack_url
+    assert_equal "https://example.com/packs/bootstrap-300631c4f0e0f9c865bc.js", asset_pack_url("bootstrap.js")
+    assert_equal "https://example.com/packs/bootstrap-c38deda30895059837cf.css", asset_pack_url("bootstrap.css")
   end
 
   def test_javascript_pack_tag
