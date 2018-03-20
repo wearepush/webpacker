@@ -53,7 +53,7 @@ class Webpacker::Compiler
     def run_webpack
       logger.info "Compiling…"
 
-      sterr, stdout, status = Open3.capture3(webpack_env, "bundle exec webpack")
+      sterr, stdout, status = Open3.capture3(webpack_env, "#{RbConfig.ruby} ./bin/webpack")
 
       if status.success?
         logger.info "Compiled all packs in #{config.public_output_path}"
@@ -78,6 +78,8 @@ class Webpacker::Compiler
     end
 
     def webpack_env
-      env.merge("NODE_ENV" => @webpacker.env, "WEBPACKER_ASSET_HOST" => ActionController::Base.helpers.compute_asset_host)
+      env.merge("NODE_ENV"                    => @webpacker.env,
+                "WEBPACKER_ASSET_HOST"        => ActionController::Base.helpers.compute_asset_host,
+                "WEBPACKER_RELATIVE_URL_ROOT" => ActionController::Base.relative_url_root)
     end
 end
