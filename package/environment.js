@@ -33,8 +33,7 @@ const getPluginList = () => {
 
 const getExtensionsGlob = () => {
   const { extensions } = config
-  // return extensions.length === 1 ? `**/*${extensions[0]}` : `**/*{${extensions.join(',')}}`
-  return `*{${extensions.join(',')}}*`;
+  return extensions.length === 1 ? `**/*${extensions[0]}` : `**/*{${extensions.join(',')}}`
 }
 
 const getEntryObject = () => {
